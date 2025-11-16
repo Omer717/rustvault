@@ -1,0 +1,16 @@
+[package]
+name = "rustvault"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0.100"
+
+# Enable derive for Serialize / Deserialize
+serde = { version = "1.0.228", features = ["derive"] }
+
+# No features needed here
+serde_json = "1.0.145"
+
+clap = { version = "4", features = ["derive"] }
+directories = "5.0"
