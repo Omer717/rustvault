@@ -4,6 +4,8 @@ use clap::Parser;
 
 mod cli;
 mod commands;
+mod crypto;
+mod models;
 
 fn main() -> anyhow::Result<()> {
     let dev_mode = Path::new("Cargo.toml").exists();

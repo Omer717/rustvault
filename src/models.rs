@@ -1,20 +1,11 @@
 use serde::{Deserialize, Serialize};
-use zeroize::Zeroize;
 
 #[derive(Serialize, Deserialize)]
 pub struct Vault {
     pub version: u8,
-    pub kdf: KdfConfig,
+    pub salt: String,
     pub check: EncryptedData,
-    pub secrets: Vec<Secret>,
-}
-
-#[derive(Serialize, Deserialize)]
-pub struct KdfConfig {
-    pub salt: String, // base64
-    pub memory_cost: u32,
-    pub iterations: u32,
-    pub parallelism: u8,
+    pub entries: Vec<Entry>,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -24,15 +15,9 @@ pub struct EncryptedData {
 }
 
 #[derive(Serialize, Deserialize)]
-pub struct Secret {
+pub struct Entry {
     pub service: String,
     pub username: Option<String>,
     pub nonce: String,      // AEAD nonce
     pub ciphertext: String, // encrypted password
-}
-
-impl Zeroize for Secret {
-    fn zeroize(&mut self) {
-        self.ciphertext.zeroize();
-    }
 }
