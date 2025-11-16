@@ -3,7 +3,7 @@ use std::io::{self, Write};
 use clap::Subcommand;
 use rpassword::{prompt_password, read_password};
 
-use crate::crypto;
+use crate::{crypto, storage::save_vault};
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -65,21 +65,14 @@ pub fn initialize_vault(dev_mode: bool) -> anyhow::Result<()> {
     let salt = crypto::get_salt();
     let master_key = crypto::derive_key(&master_pass, &salt)?;
     let encrypted_check = crypto::encrypt_check(&master_key);
-    let mut vault = crate::models::Vault {
+    let vault = crate::models::Vault {
         version: 1,
         salt,
         check: encrypted_check,
         entries: Vec::new(),
     };
-
-    let x = serde_json::to_string_pretty(&vault)?;
-    println!("Initialized vault:\n{}", x);
-
-    let test_pass = get_master_password(dev_mode)?;
-    let test_key = crypto::derive_key(&test_pass, &vault.salt)?;
-    let is_valid = crypto::test_master_key(&test_key, &vault.check)?;
-    println!("Master password valid: {}", is_valid);
-    // Implementation here
+    save_vault(&vault, dev_mode)?;
+    println!("Initialized vault successfully.");
     Ok(())
 }
 pub fn edit_entry(

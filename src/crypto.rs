@@ -24,8 +24,7 @@ pub fn get_salt() -> String {
 pub fn encrypt_check(master_key: &[u8]) -> EncryptedData {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(master_key));
 
-    let mut nonce_bytes = [0u8; 12];
-    OsRng.try_fill_bytes(&mut nonce_bytes).unwrap(); // handle Result
+    let nonce_bytes = get_nonce();
     let nonce = Nonce::from_slice(&nonce_bytes);
 
     let ciphertext = cipher.encrypt(nonce, b"vault check".as_ref()).unwrap();
@@ -48,4 +47,10 @@ pub fn test_master_key(master_key: &[u8], encrypted_check: &EncryptedData) -> an
         Ok(plaintext) => Ok(plaintext == b"vault check"),
         Err(_) => Ok(false),
     }
+}
+
+pub fn get_nonce() -> [u8; 12] {
+    let mut nonce_bytes = [0u8; 12];
+    OsRng.try_fill_bytes(&mut nonce_bytes).unwrap(); // Fill with cryptographically secure random bytes
+    nonce_bytes
 }

@@ -6,6 +6,8 @@ mod cli;
 mod commands;
 mod crypto;
 mod models;
+mod storage;
+mod utils;
 
 fn main() -> anyhow::Result<()> {
     let dev_mode = Path::new("Cargo.toml").exists();
