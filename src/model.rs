@@ -13,3 +13,11 @@ pub struct Vault {
     pub entries: Vec<Entry>, // all password entries
     pub salt: Vec<u8>,       // salt used to derive encryption key from master password
 }
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EncryptedVault {
+    pub version: u8,
+    pub kdf: KdfParams,
+    pub encryption: EncryptionMetadata,
+    pub ciphertext: Vec<u8>, // base64 in JSON
+}
