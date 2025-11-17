@@ -2,8 +2,12 @@ use std::io::{self, Write};
 
 use clap::Subcommand;
 use rpassword::{prompt_password, read_password};
+use serde::de;
 
-use crate::{crypto, storage::save_vault};
+use crate::{
+    crypto,
+    storage::{self, load_vault, save_vault},
+};
 
 #[derive(Subcommand)]
 pub enum Commands {
@@ -32,22 +36,45 @@ pub enum Commands {
 
 fn get_master_password(dev_mode: bool) -> anyhow::Result<String> {
     let password = prompt_password("Enter Master Password:").unwrap();
-    println!("The master password is: {}", password);
+    if dev_mode {
+        println!("(Dev mode) The master password is: {}", password);
+    }
     Ok(password)
 }
 
 pub fn list_entries(dev_mode: bool) -> anyhow::Result<()> {
-    // Implementation here
+    let vault = load_vault(dev_mode)?;
+    let services: Vec<&str> = vault.entries.iter().map(|e| e.service.as_str()).collect();
+    println!("Stored services:");
+    for service in services {
+        println!("- {}", service);
+    }
     Ok(())
 }
+
 pub fn add_entry(
     service: &str,
     username: &str,
     password: &str,
     dev_mode: bool,
 ) -> anyhow::Result<()> {
-    get_master_password(dev_mode)?;
-    // Implementation here
+    let mut vault = load_vault(dev_mode)?;
+    let master_password = get_master_password(dev_mode)?;
+    let derived_key = crypto::derive_key(&master_password, &vault.salt)?;
+    let is_correct = crypto::test_master_key(&derived_key, &vault.check)?;
+    if !is_correct {
+        anyhow::bail!("Incorrect master password");
+    }
+    let encrypted_data = crypto::encrypt(&derived_key, password);
+
+    vault.entries.push(crate::models::Entry {
+        service: service.to_string(),
+        username: Some(username.to_string()),
+        nonce: encrypted_data.nonce,
+        ciphertext: encrypted_data.ciphertext,
+    });
+    save_vault(&vault, dev_mode)?;
+    println!("Added entry for service: {}", service);
     Ok(())
 }
 pub fn remove_entry(service: &str, dev_mode: bool) -> anyhow::Result<()> {

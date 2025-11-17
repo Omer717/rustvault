@@ -1,4 +1,5 @@
 use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce, aead::Aead};
+use anyhow::Context;
 use argon2::{self};
 use base64::{Engine, engine::general_purpose};
 use rand::{TryRngCore, rngs::OsRng};
@@ -22,12 +23,30 @@ pub fn get_salt() -> String {
 }
 
 pub fn encrypt_check(master_key: &[u8]) -> EncryptedData {
+    encrypt(master_key, "vault check")
+}
+
+pub fn test_master_key(master_key: &[u8], encrypted_check: &EncryptedData) -> anyhow::Result<bool> {
+    let Ok(plaintext) = decrypt(master_key, encrypted_check) else {
+        return Ok(false); // decryption failed (wrong key or corrupted data)
+    };
+
+    Ok(plaintext == "vault check")
+}
+
+pub fn get_nonce() -> [u8; 12] {
+    let mut nonce_bytes = [0u8; 12];
+    OsRng.try_fill_bytes(&mut nonce_bytes).unwrap(); // Fill with cryptographically secure random bytes
+    nonce_bytes
+}
+
+pub fn encrypt(master_key: &[u8], plaintext: &str) -> EncryptedData {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(master_key));
 
     let nonce_bytes = get_nonce();
     let nonce = Nonce::from_slice(&nonce_bytes);
 
-    let ciphertext = cipher.encrypt(nonce, b"vault check".as_ref()).unwrap();
+    let ciphertext = cipher.encrypt(nonce, plaintext.as_bytes()).unwrap();
 
     EncryptedData {
         nonce: general_purpose::STANDARD.encode(nonce.as_slice()), // slice needed
@@ -35,22 +54,18 @@ pub fn encrypt_check(master_key: &[u8]) -> EncryptedData {
     }
 }
 
-pub fn test_master_key(master_key: &[u8], encrypted_check: &EncryptedData) -> anyhow::Result<bool> {
+pub fn decrypt(master_key: &[u8], encrypted_data: &EncryptedData) -> anyhow::Result<String> {
     let cipher = Aes256Gcm::new(Key::<Aes256Gcm>::from_slice(master_key));
 
-    let nonce_bytes = general_purpose::STANDARD.decode(&encrypted_check.nonce)?;
+    let nonce_bytes = general_purpose::STANDARD.decode(&encrypted_data.nonce)?;
     let nonce = Nonce::from_slice(&nonce_bytes);
 
-    let ciphertext_bytes = general_purpose::STANDARD.decode(&encrypted_check.ciphertext)?;
+    let ciphertext_bytes = general_purpose::STANDARD.decode(&encrypted_data.ciphertext)?;
 
-    match cipher.decrypt(nonce, ciphertext_bytes.as_ref()) {
-        Ok(plaintext) => Ok(plaintext == b"vault check"),
-        Err(_) => Ok(false),
-    }
-}
+    let plaintext_bytes = cipher
+        .decrypt(nonce, ciphertext_bytes.as_ref())
+        .map_err(|e| anyhow::anyhow!("AES-GCM decryption failed: {:?}", e))?;
+    let plaintext = String::from_utf8(plaintext_bytes)?;
 
-pub fn get_nonce() -> [u8; 12] {
-    let mut nonce_bytes = [0u8; 12];
-    OsRng.try_fill_bytes(&mut nonce_bytes).unwrap(); // Fill with cryptographically secure random bytes
-    nonce_bytes
+    Ok(plaintext)
 }

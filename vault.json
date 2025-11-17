@@ -1,9 +1,22 @@
 {
   "version": 1,
-  "salt": "bdxoD6A1gTBazLvyssvyJg==",
+  "salt": "0GW8ISUTHf/yD2Zn6PuFFA==",
   "check": {
-    "nonce": "eVZX7nRa/xZ5VLRv",
-    "ciphertext": "AP8Sq+sEWPcvteVk9V6TPlFHFpsrCEaG4cs2"
+    "nonce": "Qy6Rdp1OhM+U4zjd",
+    "ciphertext": "SjvXN9iKFJD0nngs1wuZ9efJbvaxwxUL7rNq"
   },
-  "entries": []
+  "entries": [
+    {
+      "service": "Netflix",
+      "username": "omer.shmaryhu40@gmail.com",
+      "nonce": "JHjf0uEFwrP5lfDQ",
+      "ciphertext": "WMS4cnXas6ciFkyruemlJ9BKct8KOTMsRXNfatw="
+    },
+    {
+      "service": "Gmail",
+      "username": "omer.shmaryhu40@gmail.com",
+      "nonce": "5AV50Zt3Xw/BlXSx",
+      "ciphertext": "3RFkp7teS6QQsBrzkUOjfjMY9yRjinPpazhD0yQ="
+    }
+  ]
 }
