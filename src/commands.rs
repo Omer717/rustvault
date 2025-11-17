@@ -147,8 +147,31 @@ pub fn edit_entry(
     password: Option<&str>,
     dev_mode: bool,
 ) -> anyhow::Result<()> {
-    get_master_password(dev_mode)?;
-    // Implementation here
+    let mut vault = load_vault(dev_mode)?;
+    let master_password = get_master_password(dev_mode)?;
+    let derived_key = crypto::derive_key(&master_password, &vault.salt)?;
+    let is_correct = crypto::test_master_key(&derived_key, &vault.check)?;
+    if !is_correct {
+        anyhow::bail!("Incorrect master password");
+    }
+    if let Some(entry) = vault
+        .entries
+        .iter_mut()
+        .find(|e| e.service.to_lowercase() == service.to_lowercase())
+    {
+        if let Some(new_username) = username {
+            entry.username = Some(new_username.to_string());
+        }
+        if let Some(new_password) = password {
+            let encrypted_data = crypto::encrypt(&derived_key, new_password);
+            entry.nonce = encrypted_data.nonce;
+            entry.ciphertext = encrypted_data.ciphertext;
+        }
+        save_vault(&vault, dev_mode)?;
+        println!("Updated entry for service: {}", service);
+    } else {
+        anyhow::bail!("No entry found for service: {}", service);
+    }
     Ok(())
 }
 pub fn export_vault(filepath: &str, dev_mode: bool) -> anyhow::Result<()> {
