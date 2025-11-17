@@ -7,12 +7,6 @@
   },
   "entries": [
     {
-      "service": "Netflix",
-      "username": "omer.shmaryhu40@gmail.com",
-      "nonce": "JHjf0uEFwrP5lfDQ",
-      "ciphertext": "WMS4cnXas6ciFkyruemlJ9BKct8KOTMsRXNfatw="
-    },
-    {
       "service": "Gmail",
       "username": "omer.shmaryhu40@gmail.com",
       "nonce": "5AV50Zt3Xw/BlXSx",

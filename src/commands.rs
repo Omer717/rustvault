@@ -2,7 +2,7 @@ use std::io::{self, Write};
 
 use clap::Subcommand;
 use rpassword::{prompt_password, read_password};
-use serde::de;
+use serde::de::{self, value};
 
 use crate::{
     crypto,
@@ -78,8 +78,17 @@ pub fn add_entry(
     Ok(())
 }
 pub fn remove_entry(service: &str, dev_mode: bool) -> anyhow::Result<()> {
-    get_master_password(dev_mode)?;
-    // Implementation here
+    let mut vault = load_vault(dev_mode)?;
+    let master_password = get_master_password(dev_mode)?;
+    let derived_key = crypto::derive_key(&master_password, &vault.salt)?;
+    let is_correct = crypto::test_master_key(&derived_key, &vault.check)?;
+    if !is_correct {
+        anyhow::bail!("Incorrect master password");
+    }
+
+    vault.entries.retain(|e| e.service.to_lowercase() != service.to_lowercase());
+    save_vault(&vault, dev_mode)?;
+    println!("Removed entry for service: {}", service);
     Ok(())
 }
 pub fn get_entry(service: &str, dev_mode: bool) -> anyhow::Result<()> {
@@ -116,4 +125,13 @@ pub fn export_vault(filepath: &str, dev_mode: bool) -> anyhow::Result<()> {
     get_master_password(dev_mode)?;
     // Implementation here
     Ok(())
+}
+
+fn check_master_password(
+    master_password: &str,
+    vault: &crate::models::Vault,
+) -> anyhow::Result<bool> {
+    let derived_key = crypto::derive_key(master_password, &vault.salt)?;
+    let is_correct = crypto::test_master_key(&derived_key, &vault.check)?;
+    Ok(is_correct)
 }
