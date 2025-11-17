@@ -6,6 +6,7 @@ use serde::de::{self, value};
 
 use crate::{
     crypto,
+    models::EncryptedData,
     storage::{self, load_vault, save_vault},
 };
 
@@ -86,14 +87,43 @@ pub fn remove_entry(service: &str, dev_mode: bool) -> anyhow::Result<()> {
         anyhow::bail!("Incorrect master password");
     }
 
-    vault.entries.retain(|e| e.service.to_lowercase() != service.to_lowercase());
+    vault
+        .entries
+        .retain(|e| e.service.to_lowercase() != service.to_lowercase());
     save_vault(&vault, dev_mode)?;
     println!("Removed entry for service: {}", service);
     Ok(())
 }
 pub fn get_entry(service: &str, dev_mode: bool) -> anyhow::Result<()> {
-    get_master_password(dev_mode)?;
-    // Implementation here
+    let vault = load_vault(dev_mode)?;
+    let master_password = get_master_password(dev_mode)?;
+    let derived_key = crypto::derive_key(&master_password, &vault.salt)?;
+    let is_correct = crypto::test_master_key(&derived_key, &vault.check)?;
+    if !is_correct {
+        anyhow::bail!("Incorrect master password");
+    }
+    vault
+        .entries
+        .iter()
+        .find(|e| e.service.to_lowercase() == service.to_lowercase())
+        .map(|entry| {
+            let decrypted_password = crypto::decrypt(
+                &derived_key,
+                &EncryptedData {
+                    nonce: entry.nonce.clone(),
+                    ciphertext: entry.ciphertext.clone(),
+                },
+            )?;
+            println!("Service: {}", entry.service);
+            if let Some(username) = &entry.username {
+                println!("Username: {}", username);
+            }
+            println!("Password: {}", decrypted_password);
+            Ok(())
+        })
+        .unwrap_or_else(|| {
+            anyhow::bail!("No entry found for service: {}", service);
+        })?;
     Ok(())
 }
 pub fn initialize_vault(dev_mode: bool) -> anyhow::Result<()> {
@@ -125,13 +155,4 @@ pub fn export_vault(filepath: &str, dev_mode: bool) -> anyhow::Result<()> {
     get_master_password(dev_mode)?;
     // Implementation here
     Ok(())
-}
-
-fn check_master_password(
-    master_password: &str,
-    vault: &crate::models::Vault,
-) -> anyhow::Result<bool> {
-    let derived_key = crypto::derive_key(master_password, &vault.salt)?;
-    let is_correct = crypto::test_master_key(&derived_key, &vault.check)?;
-    Ok(is_correct)
 }
