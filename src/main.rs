@@ -1,7 +1,5 @@
-use std::path::Path;
-
 use clap::Parser;
-
+use std::path::Path;
 mod cli;
 mod commands;
 mod crypto;
@@ -41,8 +39,11 @@ fn main() -> anyhow::Result<()> {
         } => {
             commands::edit_entry(service, username.as_deref(), password.as_deref(), dev_mode)?;
         }
-        commands::Commands::Export { filepath } => {
-            commands::export_vault(filepath, dev_mode)?;
+        commands::Commands::Export {
+            filepath,
+            decrypted,
+        } => {
+            commands::export_vault(filepath, *decrypted, dev_mode)?;
         }
     }
 

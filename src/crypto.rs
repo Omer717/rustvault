@@ -1,5 +1,4 @@
 use aes_gcm::{Aes256Gcm, Key, KeyInit, Nonce, aead::Aead};
-use anyhow::Context;
 use argon2::{self};
 use base64::{Engine, engine::general_purpose};
 use rand::{TryRngCore, rngs::OsRng};

@@ -1,13 +1,10 @@
-use std::io::{self, Write};
-
 use clap::Subcommand;
-use rpassword::{prompt_password, read_password};
-use serde::de::{self, value};
+use rpassword::prompt_password;
 
 use crate::{
     crypto,
     models::EncryptedData,
-    storage::{self, load_vault, save_vault},
+    storage::{load_vault, save_vault},
 };
 
 #[derive(Subcommand)]
@@ -32,6 +29,8 @@ pub enum Commands {
     },
     Export {
         filepath: String,
+        #[arg(long)]
+        decrypted: bool,
     },
 }
 
@@ -78,6 +77,7 @@ pub fn add_entry(
     println!("Added entry for service: {}", service);
     Ok(())
 }
+
 pub fn remove_entry(service: &str, dev_mode: bool) -> anyhow::Result<()> {
     let mut vault = load_vault(dev_mode)?;
     let master_password = get_master_password(dev_mode)?;
@@ -94,6 +94,7 @@ pub fn remove_entry(service: &str, dev_mode: bool) -> anyhow::Result<()> {
     println!("Removed entry for service: {}", service);
     Ok(())
 }
+
 pub fn get_entry(service: &str, dev_mode: bool) -> anyhow::Result<()> {
     let vault = load_vault(dev_mode)?;
     let master_password = get_master_password(dev_mode)?;
@@ -126,6 +127,7 @@ pub fn get_entry(service: &str, dev_mode: bool) -> anyhow::Result<()> {
         })?;
     Ok(())
 }
+
 pub fn initialize_vault(dev_mode: bool) -> anyhow::Result<()> {
     let master_pass = get_master_password(dev_mode)?;
     let salt = crypto::get_salt();
@@ -141,6 +143,7 @@ pub fn initialize_vault(dev_mode: bool) -> anyhow::Result<()> {
     println!("Initialized vault successfully.");
     Ok(())
 }
+
 pub fn edit_entry(
     service: &str,
     username: Option<&str>,
@@ -174,8 +177,30 @@ pub fn edit_entry(
     }
     Ok(())
 }
-pub fn export_vault(filepath: &str, dev_mode: bool) -> anyhow::Result<()> {
-    get_master_password(dev_mode)?;
-    // Implementation here
+
+pub fn export_vault(filepath: &str, decryped: bool, dev_mode: bool) -> anyhow::Result<()> {
+    let mut vault = load_vault(dev_mode)?;
+    let master_password = get_master_password(dev_mode)?;
+    let derived_key = crypto::derive_key(&master_password, &vault.salt)?;
+    let is_correct = crypto::test_master_key(&derived_key, &vault.check)?;
+    if !is_correct {
+        anyhow::bail!("Incorrect master password");
+    }
+    if decryped {
+        for entry in vault.entries.iter_mut() {
+            let decrypted_password = crypto::decrypt(
+                &derived_key,
+                &EncryptedData {
+                    nonce: entry.nonce.clone(),
+                    ciphertext: entry.ciphertext.clone(),
+                },
+            )?;
+            entry.nonce = "".to_string();
+            entry.ciphertext = decrypted_password;
+        }
+    }
+    let json_vault: String = serde_json::to_string_pretty(&vault)?;
+    std::fs::write(filepath, json_vault)?;
+    println!("Exported vault to {}", filepath);
     Ok(())
 }
